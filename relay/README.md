@@ -26,7 +26,7 @@ folder sets up a free relay in Johannesburg.
 SSH in (`ssh -i key.pem ubuntu@<public-ip>`), then:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/sigivb72-netizen/Mini-militia-/main/relay/setup-moon.sh
+curl -fsSLO https://raw.githubusercontent.com/sigivb72-netizen/Mini-militia-/ccr-526ce2e0-967aej/relay/setup-moon.sh
 sudo bash setup-moon.sh
 ```
 
