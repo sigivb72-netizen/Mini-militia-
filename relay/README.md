@@ -46,10 +46,4 @@ Each phone has to "orbit" the moon using the Moon ID.
 
 ## 4. Play
 
-1. Create a free network at <https://my.zerotier.com> and copy the Network ID.
-2. Both phones join that Network ID. On the website, under Members, tick
-   **Auth** for both.
-3. One player hosts a LAN game; the other opens the LAN join screen.
-
-If the room never appears, or the game won't open LAN mode without Wi-Fi, the
-APK needs a small patch. That's the next step in this repo.
+Use the patched APK and ZeroTier setup in the [main README](../README.md).
