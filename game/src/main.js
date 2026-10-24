@@ -109,6 +109,10 @@ $('join').onclick = () => {
 $('leave').onclick = () => location.reload();
 $('menuBtn').onclick = () => { $('pause').hidden = !$('pause').hidden; };
 $('invite').onclick = async () => {
+  if (window.NativeApp) {   // Android app: share the code through the system share sheet
+    window.NativeApp.share(`Join my Jet Skirmish room: ${game.code}`);
+    return;
+  }
   const link = `${location.origin}${location.pathname}?room=${game.code}`;
   try {
     if (navigator.share) await navigator.share({ title: 'Join my match', text: `Room ${game.code}`, url: link });

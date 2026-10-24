@@ -1,0 +1,28 @@
+name: Android APK
+
+on:
+  push:
+    paths: ['game/**', 'android/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;35.0.0" > /dev/null
+      - name: Build
+        env:
+          ANDROID_JAR: ${{ env.ANDROID_HOME }}/platforms/android-34/android.jar
+          BUILD_TOOLS: ${{ env.ANDROID_HOME }}/build-tools/35.0.0
+        run: android/build.sh jet-skirmish.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jet-skirmish-apk
+          path: jet-skirmish.apk

@@ -8,7 +8,21 @@ and can be added to the home screen.
 All art is placeholder shapes, drawn in `src/render.js`. Maps are plain
 polygons in `src/maps.js`; the game builds collision from them.
 
-## Play
+## Android app
+`android/` packages this folder into an installable APK (full-screen,
+landscape, works offline vs bots, online rooms included). Build it with
+
+```bash
+ANDROID_JAR=.../platforms/android-34/android.jar BUILD_TOOLS=.../build-tools/35.0.0 \
+  android/build.sh jet-skirmish.apk
+```
+
+or download the latest build from the repo's **Actions** tab ("Android APK"
+→ newest run → `jet-skirmish-apk`). Builds are signed with
+`android/test-signing.keystore` so each new APK installs over the last one;
+make your own private key before publishing to a store.
+
+## Play in a browser (development)
 Serve the folder with any static web server, e.g.
 
 ```bash
