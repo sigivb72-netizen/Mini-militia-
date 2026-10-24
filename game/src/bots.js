@@ -3,10 +3,20 @@
 import { rayCast, hasLineOfSight } from './geom.js';
 import { WEAPONS } from './weapons.js';
 
+// aim: miss distance in pixels at the target; react: seconds from first
+// seeing someone to shooting; burst/pause: trigger on/off seconds; nade:
+// seconds between grenades.
+const SKILL = {
+  easy:   { aim: 240, react: 1.2,  burst: 0.4, pause: 1.3, nade: [20, 30], melee: 0.3 },
+  normal: { aim: 110, react: 0.5,  burst: 0.9, pause: 0.6, nade: [9, 15],  melee: 0.7 },
+  hard:   { aim: 70,  react: 0.15, burst: 99,  pause: 0,   nade: [6, 12],  melee: 1 },
+};
+
 export function botInput(sim, p, dt) {
+  const skill = SKILL[sim.settings.botSkill] || SKILL.easy;
   const inp = { mx: 0, fly: false, aim: p.aim || 0, fire: false, reload: false, swap: false, pickup: false, grenade: false, melee: false };
   if (!p.alive) return inp;
-  const brain = p.brain || (p.brain = { aimErr: 0, retarget: 0, target: null, wander: Math.random() < 0.5 ? -1 : 1, nade: 3 + Math.random() * 4 });
+  const brain = p.brain || (p.brain = { aimErr: 0, retarget: 0, target: null, wander: Math.random() < 0.5 ? -1 : 1, nade: 5 + Math.random() * 5 });
 
   brain.retarget -= dt;
   if (brain.retarget <= 0 || !brain.target || !brain.target.alive) {
@@ -18,7 +28,7 @@ export function botInput(sim, p, dt) {
       if (d < bestD) { bestD = d; best = o; }
     }
     brain.target = best;
-    brain.aimErr = (Math.random() - 0.5) * 70;   // miss distance in pixels at the target
+    brain.aimErr = (Math.random() - 0.5) * skill.aim;
   }
 
   // Where to go: a nearby better weapon if we only have a pistol, else the target.
@@ -69,17 +79,31 @@ export function botInput(sim, p, dt) {
   }
   if (brain.detour > 0) { inp.mx = brain.detourDir; inp.fly = true; }
 
+  // Reaction time: how long the target has been in sight.
+  brain.seen = visible ? (brain.seen || 0) + dt : 0;
+  // Trigger discipline: shoot in bursts with pauses between them.
+  brain.burstT = (brain.burstT || 0) - dt;
+  if (brain.burstT <= 0) {
+    brain.shooting = !brain.shooting;
+    brain.burstT = (brain.shooting ? skill.burst : skill.pause) * (0.7 + Math.random() * 0.6);
+  }
+
   if (brain.target) {
     const t = brain.target;
-    inp.aim = Math.atan2(t.y - (p.y - 4), t.x - p.x) + brain.aimErr / Math.max(tdist, 60);
+    // Aim drifts around the target instead of locking on.
+    const wobble = Math.sin(sim.time * 2.3 + p.id.length) * skill.aim * 0.35;
+    inp.aim = Math.atan2(t.y - (p.y - 4), t.x - p.x) + (brain.aimErr + wobble) / Math.max(tdist, 60);
     const w = p.weapons[p.slot], stats = WEAPONS[w.id];
     const range = stats.projectile ? 1400 : stats.range;
-    if (visible && tdist < range) inp.fire = true;
+    if (visible && tdist < range && brain.seen >= skill.react && (brain.shooting || skill.pause === 0)) inp.fire = true;
     if (w.mag === 0) inp.reload = true;
     if (p.weapons[1] && p.slot === 0) inp.swap = true;   // prefer the picked-up gun
-    if (visible && tdist < 70) inp.melee = true;
+    if (visible && tdist < 70 && Math.random() < skill.melee * dt * 4) inp.melee = true;
     brain.nade -= dt;
-    if (visible && tdist > 250 && tdist < 700 && brain.nade <= 0) { inp.grenade = true; brain.nade = 6 + Math.random() * 6; }
+    if (visible && brain.seen >= skill.react && tdist > 250 && tdist < 700 && brain.nade <= 0) {
+      inp.grenade = true;
+      brain.nade = skill.nade[0] + Math.random() * (skill.nade[1] - skill.nade[0]);
+    }
   }
   return inp;
 }

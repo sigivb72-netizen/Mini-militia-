@@ -37,6 +37,7 @@ function readSettings() {
     mode: $('mode').value,
     killLimit: Math.max(1, +$('kills').value || 20),
     bots: Math.max(0, Math.min(7, +$('bots').value || 0)),
+    botSkill: $('botSkill').value,
     infiniteAmmo: $('ammo').checked,
     infiniteFuel: $('fuel').checked,
   };
