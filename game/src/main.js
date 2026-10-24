@@ -210,6 +210,12 @@ for (const [key, m] of Object.entries(MAPS)) {
   $('map').appendChild(o);
 }
 $('name').value = store('mmx-name') || '';
+// Offline-only copies (e.g. hosts that block peer-to-peer) hide online rooms.
+if (window.MMX_OFFLINE || typeof Peer === 'undefined') {
+  $('host').hidden = true;
+  document.querySelector('.join').hidden = true;
+  status('Online rooms are off in this copy. Play vs bots.');
+}
 const roomParam = new URLSearchParams(location.search).get('room');
 if (roomParam) $('code').value = roomParam.toUpperCase();
 requestAnimationFrame(frame);
