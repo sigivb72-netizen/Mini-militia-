@@ -40,7 +40,12 @@ mobile data, never into a VPN like ZeroTier, so remote hosts are never found.
    ZeroTier even when you're in the same room.
 2. `targetSdkVersion` 23 → 24, because Android 15+ blocks installing apps that
    target below 24.
-3. Re-signed with v1+v2+v3 signatures (the original had only the old v1).
+3. Startup services turned off (`patcher/lite_startup.py`): Google Play Games
+   and Play services checks (the game is no longer on the Play Store), New
+   Relic, InMobi, MoPub tracking, Cuebiq location analytics, the Luminati
+   proxy SDK and interstitial ads. Each is an early return the game already
+   handles, because it skips them on phones without Play services.
+4. Re-signed with v1+v2+v3 signatures (the original had only the old v1).
 
 ## Play with a friend in another city
 
@@ -65,13 +70,12 @@ networks), add the free Johannesburg relay in [`relay/`](relay/README.md).
   be fixed without the game's source code.
 - **iOS is not possible.** An Android APK can't be converted to iOS.
 - Not tested on a device yet; both variants are built and signature-verified.
-- The APK also contains Luminati/"topvpn" (proxy SDK), Cuebiq (location
-  analytics) and many ad SDKs from the original game. The patch leaves them
-  as they are.
+- Google Play Games features (leaderboards, achievements, Play sign-in) are
+  off.
 
 ## Building
 
 ```bash
-# needs python3, Java (keytool) and Android build-tools 34 (zipalign, apksigner)
-patcher/build.sh original.apk out/ my-release.keystore /path/to/build-tools
+# needs python3, Java, Android build-tools 34 (zipalign, apksigner) and apktool
+patcher/build.sh original.apk out/ my-release.keystore /path/to/build-tools apktool.jar
 ```

@@ -10,11 +10,14 @@ What it changes, and nothing else:
      The string is replaced with an address that routes through ZeroTier.
   2. AndroidManifest.xml: targetSdkVersion 23 -> 24. Android 15+ refuses to
      install apps that target below 24.
-  3. Old v1 signature removed; the output must be re-signed (see build.sh).
+  3. Optionally, classes*.dex taken from another APK (--dex-from), i.e. the
+     apktool rebuild made by lite_startup.py. Every other file stays
+     byte-identical to the original.
+  4. Old v1 signature removed; the output must be re-signed (see build.sh).
 
-Usage: patch_apk.py IN.apk OUT-unsigned.apk --lan-target 10.147.17.255
+Usage: patch_apk.py IN.apk OUT-unsigned.apk --lan-target 10.147.17.255 [--dex-from LITE.apk]
 """
-import argparse, ipaddress, struct, sys, zipfile
+import argparse, ipaddress, re, struct, sys, zipfile
 
 SO_PATH = "lib/armeabi-v7a/libcocos2dcpp.so"
 BROADCAST = b"255.255.255.255\0"
@@ -74,7 +77,13 @@ def main():
     ap.add_argument("dst")
     ap.add_argument("--lan-target", required=True,
                     help="address LAN discovery pings go to, e.g. 10.147.17.255 or 10.147.17.1")
+    ap.add_argument("--dex-from", help="APK whose classes*.dex replace the original's")
     args = ap.parse_args()
+
+    dex = {}
+    if args.dex_from:
+        with zipfile.ZipFile(args.dex_from) as zdex:
+            dex = {n: zdex.read(n) for n in zdex.namelist() if re.fullmatch(r"classes\d*\.dex", n)}
 
     with zipfile.ZipFile(args.src) as zin, \
          zipfile.ZipFile(args.dst, "w", zipfile.ZIP_DEFLATED) as zout:
@@ -86,7 +95,9 @@ def main():
             if is_old_signature(info.filename):
                 continue
             data = zin.read(info)
-            if info.filename == SO_PATH:
+            if info.filename in dex:
+                data = dex.pop(info.filename)
+            elif info.filename == SO_PATH:
                 data = patch_so(data, args.lan_target)
             elif info.filename == "AndroidManifest.xml":
                 data = patch_manifest(data)
@@ -94,7 +105,10 @@ def main():
             out.compress_type = info.compress_type
             out.external_attr = info.external_attr
             zout.writestr(out, data)
-    print("patched: LAN discovery -> %s, targetSdkVersion >= %d" % (args.lan_target, MIN_TARGET_SDK))
+        if dex:
+            sys.exit("dex files not in original APK: %s" % ", ".join(sorted(dex)))
+    print("patched: LAN discovery -> %s, targetSdkVersion >= %d%s"
+          % (args.lan_target, MIN_TARGET_SDK, ", code from " + args.dex_from if args.dex_from else ""))
 
 
 if __name__ == "__main__":
