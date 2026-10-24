@@ -6,6 +6,7 @@ const BUTTONS = [
   { id: 'grenade', label: 'G', x: -225, y: -175 },
   { id: 'melee', label: '✊', x: -70, y: -340 },
   { id: 'pickup', label: '⬆', x: -150, y: -310 },
+  { id: 'scope', label: '◎', x: -225, y: -255 },
 ];
 
 export class Input {
@@ -14,7 +15,7 @@ export class Input {
     this.renderer = renderer;
     this.keys = new Set();
     this.mouse = { x: 0, y: 0, down: false, used: false };
-    this.edges = { reload: false, swap: false, pickup: false, grenade: false, melee: false };
+    this.edges = { reload: false, swap: false, pickup: false, grenade: false, melee: false, scope: false };
     this.touch = 'ontouchstart' in window;
     this.left = null;    // { id, ox, oy, x, y }
     this.right = null;
@@ -30,6 +31,7 @@ export class Input {
         if (k === 'e') this.edges.pickup = true;
         if (k === 'g') this.edges.grenade = true;
         if (k === 'f' || k === 'v') this.edges.melee = true;
+        if (k === 'z') this.edges.scope = true;
       }
       if (k === 'tab') { this.showScores = true; e.preventDefault(); }
       this.keys.add(k);
@@ -43,6 +45,7 @@ export class Input {
     canvas.addEventListener('mousedown', e => { if (e.button === 0) this.mouse.down = true; if (e.button === 2) this.edges.grenade = true; });
     addEventListener('mouseup', e => { if (e.button === 0) this.mouse.down = false; });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
+    canvas.addEventListener('wheel', e => { e.preventDefault(); this.edges.scope = true; }, { passive: false });
 
     canvas.addEventListener('touchstart', e => this.onTouch(e, 'start'), { passive: false });
     canvas.addEventListener('touchmove', e => this.onTouch(e, 'move'), { passive: false });
@@ -97,14 +100,15 @@ export class Input {
     const L = this.stick(this.left), R = this.stick(this.right);
     if (this.left) {
       mx = Math.abs(L.x) > 0.25 ? L.x : 0;
-      fly = L.y < -0.35;
+      // Analog thrust: the further up the stick, the stronger the jetpack.
+      fly = L.y < -0.2 ? Math.min(1, (-L.y - 0.2) / 0.6) : 0;
     }
     if (this.right && R.mag > 0.2) {
       this.aim = R.a;
       fire = R.mag > 0.75;   // push the aim stick to the edge to shoot
     }
     const out = { mx, fly, aim: this.aim, fire, ...this.edges };
-    this.edges = { reload: false, swap: false, pickup: false, grenade: false, melee: false };
+    this.edges = { reload: false, swap: false, pickup: false, grenade: false, melee: false, scope: false };
     return out;
   }
 

@@ -3,6 +3,7 @@ import { Sim, EMPTY_INPUT } from './sim.js';
 import { Renderer } from './render.js';
 import { Input } from './input.js';
 import { Host, Client, makeRoomCode } from './net.js';
+import { WEAPONS } from './weapons.js';
 
 const STEP = 1 / 60, SEND_RATE = 1 / 20, INPUT_RATE = 1 / 30, INTERP_DELAY = 0.1;
 const BOT_NAMES = ['Rook', 'Viper', 'Mako', 'Juno', 'Brick', 'Ghost', 'Nova', 'Tank'];
@@ -13,6 +14,14 @@ const renderer = new Renderer(canvas);
 const input = new Input(canvas, renderer);
 
 let game = null;   // { kind: 'local'|'host'|'client', ... }
+let scope = 1;     // local view zoom; each weapon caps it (4x close range, 7x long range)
+
+// Scope button cycles 1x, 2x, ... up to the weapon's limit, then back to 1x.
+function updateScope(pressed, weaponId) {
+  const max = weaponId && WEAPONS[weaponId] ? WEAPONS[weaponId].scope : 1;
+  if (pressed) scope = scope >= max ? 1 : scope + 1;
+  if (scope > max) scope = max;
+}
 
 function store(key, value) {
   try {
@@ -162,6 +171,7 @@ function frame() {
       game.inputAcc += dt;
       const meSnap = game.snaps.length && game.snaps[game.snaps.length - 1].s.players.find(p => p.id === game.myId);
       const inp = input.take(meSnap && meSnap.x, meSnap && meSnap.y);
+      updateScope(inp.scope, meSnap && meSnap.al ? meSnap.w : null);
       game.pendingInput = merge(game.pendingInput, inp);
       if (game.inputAcc >= INPUT_RATE) {
         game.net.sendInput(game.pendingInput);
@@ -171,7 +181,9 @@ function frame() {
       snap = clientSnapshot(game, now);
     } else {
       const me = game.sim.players.get('me');
-      game.sim.setInput('me', me && me.alive ? input.take(me.x, me.y) : { ...EMPTY_INPUT, aim: input.take().aim });
+      const inp = me && me.alive ? input.take(me.x, me.y) : { ...EMPTY_INPUT, aim: input.take().aim };
+      updateScope(inp.scope, me && me.alive ? me.weapons[me.slot].id : null);
+      game.sim.setInput('me', inp);
       game.acc += dt;
       while (game.acc >= STEP) { game.sim.step(STEP); game.acc -= STEP; }
       const events = game.sim.drainEvents();
@@ -191,7 +203,7 @@ function frame() {
       const s = game.settings;
       renderer.draw(snap, MAPS[s.map], game.myId, now, {
         infiniteAmmo: s.infiniteAmmo, mode: s.mode, killLimit: s.killLimit,
-        roomCode: game.code, showScores: input.showScores,
+        roomCode: game.code, showScores: input.showScores, scope,
       });
       input.drawTouch(renderer.ctx, renderer.dpr);
     }

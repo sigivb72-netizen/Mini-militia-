@@ -6,7 +6,7 @@ import { botInput } from './bots.js';
 
 export const PLAYER_R = 20;
 const GRAVITY = 1500, JET = 2900, MAX_FALL = 900, MAX_RISE = -520;
-const RUN = 290, GROUND_ACC = 2600, AIR_ACC = 1300;
+const RUN = 290, GROUND_ACC = 2600, AIR_ACC = 1300, HOVER_TIME = 0.8, AIR_DRAG = 0.9;
 const FUEL_DRAIN = 0.42, FUEL_REGEN_GROUND = 0.35, FUEL_REGEN_AIR = 0.1;
 const REGEN_DELAY = 4, REGEN_RATE = 15, RESPAWN = 3, PICKUP_RANGE = 45, PICKUP_RESPAWN = 15;
 const TEAM_COLORS = ['#e05252', '#4f8fe0'];
@@ -104,14 +104,21 @@ export class Sim {
     const target = Math.max(-1, Math.min(1, inp.mx)) * RUN;
     const acc = p.grounded ? GROUND_ACC : AIR_ACC;
     p.vx += Math.max(-acc * dt, Math.min(acc * dt, target - p.vx));
-    p.flying = inp.fly && (p.fuel > 0 || s.infiniteFuel);
-    p.vy += GRAVITY * dt;
+    // Thrust is analog (0..1): a light push on the stick gives a gentle lift.
+    const thrust = typeof inp.fly === 'number' ? Math.max(0, Math.min(1, inp.fly)) : (inp.fly ? 1 : 0);
+    p.flying = thrust > 0 && (p.fuel > 0 || s.infiniteFuel);
+    // After letting go, gravity eases back in so the soldier floats briefly.
+    if (p.flying) p.hover = HOVER_TIME;
+    else p.hover = Math.max(0, (p.hover || 0) - dt);
+    const gravityScale = p.grounded ? 1 : 1 - 0.8 * (p.hover / HOVER_TIME);
+    p.vy += GRAVITY * gravityScale * dt;
     if (p.flying) {
-      p.vy -= JET * dt;
-      if (!s.infiniteFuel) p.fuel = Math.max(0, p.fuel - FUEL_DRAIN * dt);
+      p.vy -= JET * thrust * dt;
+      if (!s.infiniteFuel) p.fuel = Math.max(0, p.fuel - FUEL_DRAIN * thrust * dt);
     } else {
       p.fuel = Math.min(1, p.fuel + (p.grounded ? FUEL_REGEN_GROUND : FUEL_REGEN_AIR) * dt);
     }
+    if (!p.grounded) p.vy -= p.vy * AIR_DRAG * dt;
     p.vy = Math.max(MAX_RISE, Math.min(MAX_FALL, p.vy));
     p.x += p.vx * dt;
     p.y += p.vy * dt;

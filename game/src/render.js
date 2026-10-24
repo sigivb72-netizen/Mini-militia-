@@ -2,8 +2,11 @@
 // in real sprites later only touches this file.
 import { WEAPONS } from './weapons.js';
 import { PLAYER_R } from './sim.js';
+import { buildEdges, rayCast, rayCircle } from './geom.js';
 
-const VIEW_H = 950, VIEW_H_ZOOM = 1450;
+const VIEW_H = 950;
+// Each scope step widens the view so you can see (and shoot) further.
+export const scopeViewH = zoom => VIEW_H * (1 + (zoom - 1) * 0.3);
 const PICKUP_COLORS = { pistol: '#ccc', smg: '#e0b84f', rifle: '#7fd16a', shotgun: '#e0884f', sniper: '#6ac7e0', rocket: '#e05252', medkit: '#ffffff' };
 
 export class Renderer {
@@ -52,10 +55,14 @@ export class Renderer {
 
   draw(snap, map, myId, now, hud) {
     const { ctx, canvas } = this;
+    if (this.edgesFor !== map) { this.edges = buildEdges(map.solids); this.edgesFor = map; }
     const me = snap.players.find(p => p.id === myId);
-    const zoom = me && me.al && WEAPONS[me.w] && WEAPONS[me.w].zoom;
-    const scale = canvas.height / (zoom ? VIEW_H_ZOOM : VIEW_H);
-    const tx = me && me.al ? me.x : (this.cam.x || map.w / 2), ty = me && me.al ? me.y : (this.cam.y || map.h / 2);
+    const zoom = me && me.al ? hud.scope || 1 : 1;
+    const scale = canvas.height / scopeViewH(zoom);
+    // Scoped in, the camera leans toward where you aim.
+    const lead = (zoom - 1) / 6 * (canvas.width / scale) * 0.3;
+    const tx = me && me.al ? me.x + Math.cos(me.a) * lead : (this.cam.x || map.w / 2);
+    const ty = me && me.al ? me.y + Math.sin(me.a) * lead * 0.6 : (this.cam.y || map.h / 2);
     this.cam.x += (tx - this.cam.x) * 0.2;
     this.cam.y += (ty - this.cam.y) * 0.2;
     this.cam.scale += (scale - this.cam.scale) * 0.15;
@@ -63,6 +70,7 @@ export class Renderer {
     this.cam.x = Math.max(halfW, Math.min(map.w - halfW, this.cam.x));
     this.cam.y = Math.max(halfH, Math.min(map.h - halfH + (map.voidBelow ? 200 : 0), this.cam.y));
     if (halfW * 2 > map.w) this.cam.x = map.w / 2;
+    if (halfH * 2 > map.h) this.cam.y = map.h / 2;
 
     // Sky.
     const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -125,6 +133,7 @@ export class Renderer {
       if (!p.al) continue;
       this.drawSoldier(ctx, p, p.id === myId, now);
     }
+    if (me && me.al) this.drawLaser(ctx, me, snap.players);
 
     // Effects.
     this.effects = this.effects.filter(e => e.until > now);
@@ -160,6 +169,42 @@ export class Renderer {
     ctx.restore();
 
     this.drawHud(snap, me, now, hud, map);
+  }
+
+  // Laser sight from the muzzle to where the bullet would land, with a
+  // crosshair there. The ring grows with the weapon's spread at that distance.
+  drawLaser(ctx, me, players) {
+    const w = WEAPONS[me.w] || WEAPONS.pistol;
+    const dx = Math.cos(me.a), dy = Math.sin(me.a);
+    const ox = me.x, oy = me.y - 4;
+    const range = w.range || 1800;
+    let t = rayCast(ox, oy, dx, dy, range, this.edges).t;
+    for (const p of players) {
+      if (!p.al || p.id === me.id || (me.tm >= 0 && p.tm === me.tm)) continue;
+      t = Math.min(t, rayCircle(ox, oy, dx, dy, p.x, p.y, PLAYER_R + 2));
+    }
+    const muzzle = w.len + 14;
+    if (t <= muzzle) return;
+    const ex = ox + dx * t, ey = oy + dy * t;
+    const px = 1 / this.cam.scale * this.dpr;   // one screen pixel in world units
+    ctx.strokeStyle = 'rgba(255, 50, 50, 0.55)';
+    ctx.lineWidth = 1.5 * px;
+    ctx.beginPath();
+    ctx.moveTo(ox + dx * muzzle, oy + dy * muzzle);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    const r = Math.max(9 * px, Math.tan(w.spread) * t);
+    ctx.strokeStyle = 'rgba(255, 70, 70, 0.95)';
+    ctx.lineWidth = 2 * px;
+    ctx.beginPath();
+    ctx.arc(ex, ey, r, 0, Math.PI * 2);
+    ctx.moveTo(ex - r - 6 * px, ey); ctx.lineTo(ex - r + 4 * px, ey);
+    ctx.moveTo(ex + r - 4 * px, ey); ctx.lineTo(ex + r + 6 * px, ey);
+    ctx.moveTo(ex, ey - r - 6 * px); ctx.lineTo(ex, ey - r + 4 * px);
+    ctx.moveTo(ex, ey + r - 4 * px); ctx.lineTo(ex, ey + r + 6 * px);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255, 70, 70, 0.95)';
+    ctx.fillRect(ex - px * 1.5, ey - px * 1.5, px * 3, px * 3);
   }
 
   drawSoldier(ctx, p, isMe, now) {
@@ -226,6 +271,7 @@ export class Renderer {
       ctx.fillText(`${w.name}  ${me.rl ? 'reloading…' : ammo}`, 14, 48);
       ctx.fillStyle = '#ddd';
       ctx.fillText(`${me.o ? 'Other: ' + WEAPONS[me.o].name + '   ' : ''}Grenades: ${hud.infiniteAmmo ? '∞' : me.g}`, 14, 68);
+      ctx.fillText(`Scope ${hud.scope || 1}x / ${w.scope}x`, 14, 88);
     } else if (me && !me.al && !snap.over) {
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
