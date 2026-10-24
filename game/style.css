@@ -1,0 +1,39 @@
+:root {
+  --panel: #10172acc;
+  --text: #f2f2f2;
+  --accent: #e0b84f;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden; background: #0b0f1a; color: var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+
+.panel {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(440px, calc(100vw - 32px)); max-height: calc(100vh - 24px); overflow-y: auto;
+  background: var(--panel); border: 1px solid #ffffff22; border-radius: 14px; padding: 18px;
+  backdrop-filter: blur(6px); touch-action: auto;
+}
+.panel.small { width: min(300px, calc(100vw - 32px)); text-align: center; }
+h1 { margin: 0; font-size: 30px; color: var(--accent); letter-spacing: 1px; }
+.sub { margin: 2px 0 14px; opacity: 0.7; font-size: 14px; }
+label { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 8px 0; font-size: 15px; }
+label.check { justify-content: flex-start; }
+input, select, button { font: inherit; border-radius: 8px; border: 1px solid #ffffff33; background: #0b0f1a; color: var(--text); padding: 8px 10px; }
+input[type=number] { width: 80px; }
+fieldset { border: 1px solid #ffffff22; border-radius: 10px; margin: 12px 0; padding: 6px 12px; }
+legend { font-size: 13px; opacity: 0.7; }
+button { cursor: pointer; background: #2a3a5c; font-weight: 600; }
+button:active { transform: scale(0.97); }
+.buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.buttons button { padding: 12px 8px; }
+#playBots { background: #3c6e3c; }
+.join { display: flex; gap: 8px; margin-top: 8px; }
+.join input { flex: 1; text-transform: uppercase; letter-spacing: 3px; }
+#status { min-height: 1.2em; color: var(--accent); margin: 8px 0 0; }
+.help { font-size: 12px; opacity: 0.6; margin-bottom: 0; }
+#menuBtn { position: fixed; left: 12px; bottom: 12px; width: 44px; height: 44px; font-size: 22px; padding: 0; background: #0008; }
+#pause button { display: block; width: 100%; margin-top: 8px; }

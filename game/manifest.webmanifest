@@ -1,0 +1,9 @@
+{
+  "name": "Jet Skirmish",
+  "short_name": "Jet Skirmish",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0b0f1a",
+  "theme_color": "#1d2b44"
+}
